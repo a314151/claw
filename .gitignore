@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+mcp_servers.json
+.tmp_*.py
+data/
+logs/
+.vscode/

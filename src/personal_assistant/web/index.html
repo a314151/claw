@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personal LLM+MCP Assistant</title>
+    <style>
+      :root {
+        --bg: #fbfbfc;
+        --card: #ffffff;
+        --text: #151515;
+        --line: #e5e5e8;
+        --line-strong: #ccccd2;
+        --muted: #7c7c86;
+        --danger: #a00020;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background: radial-gradient(circle at 0% 0%, #f4f4f6 0%, #fbfbfc 45%, #f3f3f5 100%);
+        font-family: "IBM Plex Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        overflow: hidden;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font-family: inherit;
+      }
+
+      .layout {
+        max-width: 1080px;
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: 12px;
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 12px;
+      }
+
+      .sidebar {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(8px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 8px;
+        position: relative;
+        z-index: 30;
+        overflow: visible;
+      }
+
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid var(--line-strong);
+        background: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .avatar-wrap {
+        position: relative;
+      }
+
+      .avatar-menu {
+        position: absolute;
+        left: 52px;
+        top: 0;
+        min-width: 120px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        padding: 4px;
+        display: none;
+        z-index: 20;
+      }
+
+      .avatar-menu.show {
+        display: grid;
+      }
+
+      .avatar-menu button {
+        border: none;
+        border-radius: 8px;
+        text-align: left;
+        background: #fff;
+        padding: 8px 10px;
+      }
+
+      .avatar-menu button:hover {
+        background: #f4f4f6;
+      }
+
+      .history-list {
+        display: grid;
+        gap: 8px;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
+      .history-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px;
+        text-align: left;
+        display: grid;
+        gap: 4px;
+      }
+
+      .history-item .t1 {
+        font-size: 14px;
+      }
+
+      .history-item .t2 {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .tool-log {
+        margin-top: 8px;
+        border-top: 1px dashed var(--line);
+        padding-top: 8px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .tool-panel {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fcfcfd;
+        overflow: hidden;
+      }
+
+      .tool-panel > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 8px 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .tool-panel > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .tool-entry {
+        font-size: 12px;
+        color: var(--muted);
+        background: #f7f7f9;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 8px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .usage-note {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        border-top: 1px dashed var(--line);
+        padding-top: 8px;
+      }
+
+      .export-tools {
+        margin-top: 8px;
+      }
+
+      .export-tools > summary {
+        list-style: none;
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        color: var(--muted);
+        background: #fff;
+        cursor: pointer;
+      }
+
+      .export-tools > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .export-actions {
+        margin-top: 6px;
+        display: flex;
+        gap: 6px;
+      }
+
+      .btn-mini {
+        padding: 4px 8px;
+        font-size: 11px;
+        border-radius: 8px;
+      }
+
+      .side-label {
+        font-size: 11px;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.3;
+      }
+
+      .main {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 12px;
+        z-index: 1;
+        min-height: calc(100vh - 24px);
+      }
+
+      .topbar {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(8px);
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .status {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .chat {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        box-shadow: 0 18px 50px rgba(22, 22, 28, 0.12), 0 2px 8px rgba(22, 22, 28, 0.06);
+        backdrop-filter: blur(2px);
+      }
+
+      .timeline {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overscroll-behavior: contain;
+      }
+
+      .msg {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #f7f7f8;
+      }
+
+      .msg.user {
+        background: #fff;
+        border-color: var(--line-strong);
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .composer {
+        border-top: 1px solid var(--line);
+        padding: 12px;
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.94);
+      }
+
+      textarea,
+      input,
+      select {
+        width: 100%;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        padding: 10px 12px;
+      }
+
+      textarea {
+        min-height: 52px;
+        max-height: 220px;
+        resize: vertical;
+        flex: 1;
+      }
+
+      .composer-right {
+        width: 180px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: #111;
+        border-color: #111;
+        color: #fff;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      dialog {
+        width: min(760px, 92vw);
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        padding: 0;
+      }
+
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .modal-head {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-body {
+        padding: 14px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .mcp-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .mcp-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .auth-tabs {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .auth-tab {
+        border: none;
+        border-right: 1px solid var(--line);
+        border-radius: 0;
+      }
+
+      .auth-tab:last-child {
+        border-right: none;
+      }
+
+      .auth-tab.active {
+        background: #111;
+        color: #fff;
+      }
+
+      .auth-grid {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+
+      @media (max-width: 760px) {
+        body {
+          overflow: auto;
+        }
+
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          flex-direction: row;
+          justify-content: space-between;
+        }
+
+        .main {
+          grid-template-rows: auto 1fr;
+        }
+
+        .composer {
+          flex-direction: column;
+        }
+
+        .chat {
+          height: 70vh;
+        }
+
+        .composer-right {
+          width: 100%;
+          flex-direction: row;
+        }
+
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="avatar-wrap">
+          <button class="avatar" id="avatarBtn" title="账号菜单">?</button>
+          <div class="avatar-menu" id="avatarMenu">
+            <button id="openAuthBtn">账号入口</button>
+            <button id="historyBtn">历史记录</button>
+            <button id="memoryBtn">我的资料库</button>
+            <button id="newChatBtn">新建对话</button>
+            <button id="settingsBtn">设置</button>
+            <button id="logoutBtn">退出登录</button>
+          </div>
+        </div>
+        <div class="side-label" id="authHint">登录/注册</div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div class="title">LLM + MCP 个人助手</div>
+          <div class="status" id="authStatus">请先登录后开始聊天</div>
+        </div>
+
+        <section class="chat" id="chatPanel">
+          <div class="timeline" id="timeline"></div>
+          <div class="composer">
+            <textarea id="message" placeholder="输入问题，Ctrl+Enter 发送"></textarea>
+            <div class="composer-right">
+              <div class="status" id="currentSessionLabel">当前会话：未选择</div>
+              <button class="primary" id="sendBtn">发送</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="authDialog">
+      <div class="modal-head">
+        <strong>账号入口</strong>
+        <button id="closeAuthBtn">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="auth-tabs">
+          <button id="tabRegister" class="auth-tab active">注册</button>
+          <button id="tabLogin" class="auth-tab">登录</button>
+        </div>
+        <div class="status">首次使用请先注册，已有账号请选择登录。</div>
+        <input id="email" placeholder="邮箱" autocomplete="email" />
+        <div class="auth-grid">
+          <input id="code" placeholder="验证码" />
+          <button id="sendCodeBtn">发送验证码</button>
+        </div>
+        <button class="primary" id="confirmAuthBtn">完成验证</button>
+        <div class="status" id="authDialogStatus"></div>
+      </div>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <div class="modal-head">
+        <strong>设置</strong>
+        <button id="closeSettingsBtn">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid2">
+          <div>
+            <label>模型提供商</label>
+            <select id="provider"></select>
+          </div>
+          <div>
+            <label>预设模型</label>
+            <select id="modelPreset"></select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>模型名覆盖</label>
+            <input id="model" placeholder="可留空" />
+          </div>
+          <div>
+            <label>API Key（仅浏览器本地）</label>
+            <input id="apiKey" type="password" placeholder="可留空" />
+          </div>
+        </div>
+        <hr />
+        <div>
+          <strong>模型价格表（可编辑）</strong>
+          <textarea id="pricingJson" style="min-height: 160px; margin-top: 8px;" placeholder='{"openai": [["gpt-5-mini",0.25,2.0]]}'></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button id="loadDefaultPricingBtn">恢复默认价格表</button>
+            <button id="savePricingBtn" class="primary">保存价格表</button>
+          </div>
+        </div>
+        <hr />
+        <div>
+          <strong>MCP 配置</strong>
+          <div id="mcpList" style="margin-top: 8px; display: grid; gap: 8px;"></div>
+          <button id="saveMcpBtn" class="primary" style="margin-top: 10px;">保存 MCP 配置</button>
+        </div>
+        <div class="status" id="settingsStatus"></div>
+      </div>
+    </dialog>
+
+    <dialog id="memoryDialog">
+      <div class="modal-head">
+        <strong>我的资料库（画像/习惯/技能/价格）</strong>
+        <button id="closeMemoryBtn">关闭</button>
+      </div>
+      <div class="modal-body">
+        <label>用户画像</label>
+        <textarea id="memoryProfile" style="min-height:120px;"></textarea>
+
+        <label>行为习惯（JSON）</label>
+        <textarea id="memoryHabits" style="min-height:120px;"></textarea>
+
+        <label>Skills（JSON）</label>
+        <textarea id="memorySkills" style="min-height:160px;"></textarea>
+
+        <label>价格表（JSON）</label>
+        <textarea id="memoryPricing" style="min-height:160px;"></textarea>
+
+        <div style="display:flex; gap:8px;">
+          <button id="saveMemoryBtn" class="primary">保存资料</button>
+          <button id="openVersionBtn">历史存档</button>
+        </div>
+        <div class="status" id="memoryStatus"></div>
+      </div>
+    </dialog>
+
+    <dialog id="versionDialog">
+      <div class="modal-head">
+        <strong>历史存档</strong>
+        <button id="closeVersionBtn">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="history-list" id="versionList"></div>
+      </div>
+    </dialog>
+
+    <dialog id="historyDialog">
+      <div class="modal-head">
+        <strong>历史记录</strong>
+        <button id="closeHistoryBtn">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="status">每条历史代表一个独立对话，点击可切换进入。</div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script>
+      const tokenKey = "pa_auth_token";
+      const keyPrefix = "pa_api_key_";
+      const toolPanelOpenPrefix = "pa_tool_panel_open_";
+
+      const state = {
+        providers: [],
+        mcpCatalog: [],
+        mcpConfig: [],
+        authMode: "register",
+        userEmail: "",
+        currentSessionId: "",
+        sessions: [],
+        pricing: {},
+        pricingDefaults: {},
+        memoryVersions: [],
+        apiCaps: {
+          pricing: true,
+          memory: true,
+          exportAnswer: true,
+        },
+      };
+
+      const chatPanel = document.getElementById("chatPanel");
+      const authStatus = document.getElementById("authStatus");
+      const authHint = document.getElementById("authHint");
+      const avatarBtn = document.getElementById("avatarBtn");
+      const avatarMenu = document.getElementById("avatarMenu");
+      const openAuthBtn = document.getElementById("openAuthBtn");
+      const historyBtn = document.getElementById("historyBtn");
+      const memoryBtn = document.getElementById("memoryBtn");
+      const newChatBtn = document.getElementById("newChatBtn");
+      const authDialog = document.getElementById("authDialog");
+      const closeAuthBtn = document.getElementById("closeAuthBtn");
+      const tabRegister = document.getElementById("tabRegister");
+      const tabLogin = document.getElementById("tabLogin");
+      const emailEl = document.getElementById("email");
+      const codeEl = document.getElementById("code");
+      const sendCodeBtn = document.getElementById("sendCodeBtn");
+      const confirmAuthBtn = document.getElementById("confirmAuthBtn");
+      const authDialogStatus = document.getElementById("authDialogStatus");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      const providerEl = document.getElementById("provider");
+      const modelPresetEl = document.getElementById("modelPreset");
+      const modelEl = document.getElementById("model");
+      const apiKeyEl = document.getElementById("apiKey");
+      const settingsStatus = document.getElementById("settingsStatus");
+      const pricingJsonEl = document.getElementById("pricingJson");
+      const loadDefaultPricingBtn = document.getElementById("loadDefaultPricingBtn");
+      const savePricingBtn = document.getElementById("savePricingBtn");
+      const mcpListEl = document.getElementById("mcpList");
+      const settingsBtn = document.getElementById("settingsBtn");
+      const settingsDialog = document.getElementById("settingsDialog");
+      const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+      const saveMcpBtn = document.getElementById("saveMcpBtn");
+      const historyDialog = document.getElementById("historyDialog");
+      const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+      const historyListEl = document.getElementById("historyList");
+      const memoryDialog = document.getElementById("memoryDialog");
+      const closeMemoryBtn = document.getElementById("closeMemoryBtn");
+      const memoryProfileEl = document.getElementById("memoryProfile");
+      const memoryHabitsEl = document.getElementById("memoryHabits");
+      const memorySkillsEl = document.getElementById("memorySkills");
+      const memoryPricingEl = document.getElementById("memoryPricing");
+      const saveMemoryBtn = document.getElementById("saveMemoryBtn");
+      const openVersionBtn = document.getElementById("openVersionBtn");
+      const memoryStatusEl = document.getElementById("memoryStatus");
+      const versionDialog = document.getElementById("versionDialog");
+      const closeVersionBtn = document.getElementById("closeVersionBtn");
+      const versionListEl = document.getElementById("versionList");
+
+      const timelineEl = document.getElementById("timeline");
+      const messageEl = document.getElementById("message");
+      const currentSessionLabelEl = document.getElementById("currentSessionLabel");
+      const sendBtn = document.getElementById("sendBtn");
+
+      function getToken() {
+        return localStorage.getItem(tokenKey) || "";
+      }
+
+      function setToken(token) {
+        if (token) localStorage.setItem(tokenKey, token);
+        else localStorage.removeItem(tokenKey);
+      }
+
+      function authHeaders() {
+        const token = getToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      }
+
+      function avatarText() {
+        if (!state.userEmail) return "?";
+        return state.userEmail[0].toUpperCase();
+      }
+
+      function renderAuthMode() {
+        const isRegister = state.authMode === "register";
+        tabRegister.classList.toggle("active", isRegister);
+        tabLogin.classList.toggle("active", !isRegister);
+      }
+
+      function makeSessionId() {
+        return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+      }
+
+      function renderCurrentSessionLabel() {
+        const current = state.sessions.find((x) => x.session_id === state.currentSessionId);
+        const title = current?.title || "新对话";
+        currentSessionLabelEl.textContent = `当前会话：${title}`;
+      }
+
+      function startNewConversation() {
+        state.currentSessionId = makeSessionId();
+        timelineEl.innerHTML = "";
+        renderCurrentSessionLabel();
+      }
+
+      function formatTs(ts) {
+        if (!ts) return "";
+        const d = new Date(ts * 1000);
+        if (Number.isNaN(d.getTime())) return "";
+        return d.toLocaleString("zh-CN", { hour12: false });
+      }
+
+      function renderHistoryList() {
+        historyListEl.innerHTML = "";
+        if (!state.sessions.length) {
+          const empty = document.createElement("div");
+          empty.className = "status";
+          empty.textContent = "暂无历史会话";
+          historyListEl.appendChild(empty);
+          return;
+        }
+
+        for (const item of state.sessions) {
+          const btn = document.createElement("button");
+          btn.className = "history-item";
+          btn.innerHTML = `<div class="t1">${item.title || "新对话"}</div><div class="t2">${formatTs(item.updated_at)}</div>`;
+          btn.addEventListener("click", async () => {
+            await loadSessionHistory(item.session_id);
+            historyDialog.close();
+          });
+          historyListEl.appendChild(btn);
+        }
+      }
+
+      async function refreshSessions() {
+        if (!getToken()) {
+          state.sessions = [];
+          return;
+        }
+        const data = await api("/api/history/sessions", { method: "GET" });
+        state.sessions = data.items || [];
+        renderCurrentSessionLabel();
+      }
+
+      async function loadSessionHistory(sessionId) {
+        if (!getToken()) return;
+        const data = await api(`/api/history/${encodeURIComponent(sessionId)}`, { method: "GET" });
+        state.currentSessionId = sessionId;
+        timelineEl.innerHTML = "";
+        const messages = data.messages || [];
+        for (let i = 0; i < messages.length; i += 1) {
+          const msg = messages[i];
+          if (msg.role === "user") {
+            append("user", msg.content, "你");
+            continue;
+          }
+
+          if (msg.role === "assistant") {
+            const node = append("assistant", msg.content, "助手");
+            const meta = msg.meta && typeof msg.meta === "object" ? msg.meta : {};
+            const skillItems = Array.isArray(meta.matched_skills) ? meta.matched_skills : [];
+            const combinedEvents = [];
+            if (skillItems.length) {
+              combinedEvents.push({ type: "skill_match", items: skillItems });
+            }
+            const toolEvents = Array.isArray(meta.tool_events) ? meta.tool_events : [];
+            combinedEvents.push(...toolEvents);
+            if (combinedEvents.length) {
+              const panel = buildToolPanel(sessionId, `h_${i}`, combinedEvents);
+              node.appendChild(panel.details);
+            }
+            if (meta.usage && meta.cost) {
+              ensureUsageNote(node, meta.usage, meta.cost, meta.provider, meta.model);
+            } else {
+              ensureUsageNote(node, { unavailable: true }, {}, meta.provider, meta.model);
+            }
+            continue;
+          }
+
+          append("assistant", msg.content, msg.role || "消息");
+        }
+        renderCurrentSessionLabel();
+      }
+
+      function setAuthState(loggedIn, message, email = "") {
+        if (email) state.userEmail = email;
+        if (!loggedIn) state.userEmail = "";
+
+        chatPanel.style.opacity = loggedIn ? "1" : "0.55";
+        sendBtn.disabled = !loggedIn;
+        messageEl.disabled = !loggedIn;
+
+        authStatus.textContent = message || (loggedIn ? `已登录: ${state.userEmail}` : "请先登录");
+        authStatus.className = "status";
+        avatarBtn.textContent = avatarText();
+        authHint.textContent = loggedIn ? "账号中心" : "登录/注册";
+        renderCurrentSessionLabel();
+      }
+
+      function append(role, content, meta) {
+        const item = document.createElement("article");
+        item.className = role === "user" ? "msg user" : "msg";
+
+        const metaEl = document.createElement("div");
+        metaEl.className = "meta";
+        metaEl.textContent = meta || role;
+
+        const bodyEl = document.createElement("div");
+        bodyEl.className = "msg-body";
+        if (role === "assistant") bodyEl.innerHTML = marked.parse(content || "");
+        else bodyEl.textContent = content || "";
+
+        item.appendChild(metaEl);
+        item.appendChild(bodyEl);
+        if (role === "assistant") {
+          const tools = document.createElement("details");
+          tools.className = "export-tools";
+
+          const summary = document.createElement("summary");
+          summary.textContent = "导出";
+
+          const actions = document.createElement("div");
+          actions.className = "export-actions";
+
+          const csvBtn = document.createElement("button");
+          csvBtn.className = "btn-mini";
+          csvBtn.textContent = "导出 CSV";
+          csvBtn.addEventListener("click", async () => {
+            await exportAssistantMessage(item, "csv");
+          });
+
+          const pdfBtn = document.createElement("button");
+          pdfBtn.className = "btn-mini";
+          pdfBtn.textContent = "导出 PDF";
+          pdfBtn.addEventListener("click", async () => {
+            await exportAssistantMessage(item, "pdf");
+          });
+
+          actions.appendChild(csvBtn);
+          actions.appendChild(pdfBtn);
+          tools.appendChild(summary);
+          tools.appendChild(actions);
+          item.appendChild(tools);
+        }
+        timelineEl.appendChild(item);
+        timelineEl.scrollTop = timelineEl.scrollHeight;
+        return item;
+      }
+
+      function downloadBlob(fileName, blob) {
+        const href = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = href;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(href);
+      }
+
+      async function exportAssistantMessageLocal(title, format, content) {
+        if (format === "csv") {
+          const lines = content.split(/\r?\n/);
+          const rows = ["line,text"];
+          for (let i = 0; i < lines.length; i += 1) {
+            const escaped = `"${String(lines[i] || "").replaceAll('"', '""')}"`;
+            rows.push(`${i + 1},${escaped}`);
+          }
+          const csvText = `\ufeff${rows.join("\n")}`;
+          downloadBlob(`${title}.csv`, new Blob([csvText], { type: "text/csv;charset=utf-8" }));
+          return;
+        }
+
+        if (format === "pdf" && window.jspdf?.jsPDF) {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ unit: "pt", format: "a4" });
+          doc.setFontSize(12);
+          doc.text(title, 40, 40);
+          const wrapped = doc.splitTextToSize(content || "", 515);
+          doc.text(wrapped, 40, 66);
+          doc.save(`${title}.pdf`);
+          return;
+        }
+
+        throw new Error("当前浏览器无法执行本地 PDF 导出，请切换到新版后端导出接口。");
+      }
+
+      async function exportAssistantMessage(node, format) {
+        try {
+          if (!getToken()) {
+            setAuthState(false, "请先登录");
+            return;
+          }
+          const body = node.querySelector(".msg-body");
+          const content = (body?.innerText || "").trim();
+          if (!content) return;
+
+          const title = `answer_${new Date().toISOString().replace(/[:.]/g, "-")}`;
+          if (!state.apiCaps.exportAnswer) {
+            await exportAssistantMessageLocal(title, format, content);
+            return;
+          }
+          const res = await fetch("/api/export/answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ format, content, title }),
+          });
+          if (res.status === 404) {
+            await exportAssistantMessageLocal(title, format, content);
+            return;
+          }
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || "导出失败");
+          }
+          downloadBlob(`${title}.${format}`, await res.blob());
+        } catch (e) {
+          append("assistant", `导出失败: ${e}`, "错误");
+        }
+      }
+
+      function toolEventToText(evt) {
+        if (!evt || typeof evt !== "object") return "";
+        if (evt.type === "skill_match") {
+          const items = Array.isArray(evt.items) ? evt.items.join("、") : "";
+          return `匹配技能: ${items || "(无)"}`;
+        }
+        if (evt.type === "tool_start") {
+          const args = evt.arguments ? JSON.stringify(evt.arguments, null, 0) : "{}";
+          return `调用工具: ${evt.name}\n参数: ${args}`;
+        }
+        if (evt.type === "tool_result") {
+          return `工具返回: ${evt.name}\n摘要: ${evt.preview || "(空)"}`;
+        }
+        if (evt.type === "tool_error") {
+          return `工具错误: ${evt.name}\n${evt.message || "调用失败"}`;
+        }
+        return "";
+      }
+
+      function formatUsageText(usage, cost, provider, model) {
+        if (usage?.unavailable) {
+          const modelText = [provider, model].filter(Boolean).join("/");
+          return `本次模型: ${modelText || "未知"} | Token: 未返回（当前后端/模型未提供 usage 统计） | 费用估算: 未计算`;
+        }
+        const prompt = Number(usage?.prompt_tokens || 0);
+        const completion = Number(usage?.completion_tokens || 0);
+        const total = Number(usage?.total_tokens || prompt + completion);
+        const cny = Number(cost?.cost_cny || 0);
+        const matched = !!cost?.pricing_matched;
+        const tip = matched ? "估算" : "估算(模型单价未知，按0计)";
+        const modelText = [provider, model].filter(Boolean).join("/");
+        return `本次模型: ${modelText || "未知"} | Token: ${total} (输入 ${prompt} / 输出 ${completion}) | 费用${tip}: ¥${cny.toFixed(6)}`;
+      }
+
+      function ensureUsageNote(container, usage, cost, provider, model) {
+        if (!container) return;
+        let note = container.querySelector(".usage-note");
+        if (!note) {
+          note = document.createElement("div");
+          note.className = "usage-note";
+          container.appendChild(note);
+        }
+        note.textContent = formatUsageText(usage, cost, provider, model);
+      }
+
+      function buildToolPanel(sessionId, messageId, events = []) {
+        const details = document.createElement("details");
+        details.className = "tool-panel";
+        const openKey = `${toolPanelOpenPrefix}${sessionId || "default"}_${messageId || "msg"}`;
+        details.open = localStorage.getItem(openKey) === "1";
+
+        const summary = document.createElement("summary");
+        const list = document.createElement("div");
+        list.className = "tool-log";
+
+        function updateSummary() {
+          summary.textContent = `MCP 调用过程 (${list.childElementCount})`;
+        }
+
+        function addEvent(evt) {
+          const text = toolEventToText(evt);
+          if (!text) return;
+          const row = document.createElement("div");
+          row.className = "tool-entry";
+          row.textContent = text;
+          list.appendChild(row);
+          updateSummary();
+          timelineEl.scrollTop = timelineEl.scrollHeight;
+        }
+
+        details.addEventListener("toggle", () => {
+          localStorage.setItem(openKey, details.open ? "1" : "0");
+        });
+
+        details.appendChild(summary);
+        details.appendChild(list);
+        for (const evt of events) addEvent(evt);
+        updateSummary();
+        return { details, addEvent };
+      }
+
+      function formatCapabilityHint() {
+        const missing = [];
+        if (!state.apiCaps.pricing) missing.push("/api/pricing");
+        if (!state.apiCaps.memory) missing.push("/api/user/memory");
+        if (!state.apiCaps.exportAnswer) missing.push("/api/export/answer");
+        if (!missing.length) return "";
+        return `当前服务缺少接口: ${missing.join(", ")}（端口 ${location.port || "默认"}）。请切换到新版服务。`;
+      }
+
+      async function detectApiCaps() {
+        state.apiCaps = { pricing: true, memory: true, exportAnswer: true };
+        try {
+          const res = await fetch("/openapi.json", { method: "GET", cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          const paths = data?.paths || {};
+          state.apiCaps.pricing = !!paths["/api/pricing"];
+          state.apiCaps.memory = !!paths["/api/user/memory"];
+          state.apiCaps.exportAnswer = !!paths["/api/export/answer"];
+        } catch {
+          // openapi 不可读时保持默认值，避免阻断主流程
+        }
+      }
+
+      function activeProvider() {
+        return state.providers.find((x) => x.provider === providerEl.value) || state.providers[0];
+      }
+
+      function syncApiKeyInput() {
+        const p = activeProvider();
+        if (!p) return;
+        apiKeyEl.value = localStorage.getItem(`${keyPrefix}${p.provider}`) || "";
+      }
+
+      function renderModelOptions() {
+        const p = activeProvider();
+        modelPresetEl.innerHTML = "";
+        if (!p) return;
+
+        for (const m of p.models || []) {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          if (m === p.default_model) opt.selected = true;
+          modelPresetEl.appendChild(opt);
+        }
+
+        const custom = document.createElement("option");
+        custom.value = "__custom__";
+        custom.textContent = "自定义";
+        modelPresetEl.appendChild(custom);
+
+        modelEl.value = p.default_model || "";
+      }
+
+      function renderMcpList() {
+        mcpListEl.innerHTML = "";
+        for (const item of state.mcpCatalog) {
+          const wrap = document.createElement("div");
+          wrap.className = "mcp-item";
+          const existing = state.mcpConfig.find((x) => x.name === item.id || x.name === item.name);
+
+          const title = document.createElement("div");
+          title.className = "mcp-title";
+          title.innerHTML = `<strong>${item.name}</strong><label><input type="checkbox" data-mcp-enable="${item.id}" ${existing ? "checked" : ""}/> 启用</label>`;
+
+          const desc = document.createElement("div");
+          desc.className = "status";
+          const exportTip = item.id === "doc_export" ? "（含 CSV/PDF 导出）" : "";
+          desc.innerHTML = `${item.description}${exportTip} | <a href="${item.github}" target="_blank">GitHub</a>`;
+
+          const envBox = document.createElement("div");
+          for (const envKey of item.required_env || []) {
+            const val = existing?.env?.[envKey] || "";
+            const row = document.createElement("div");
+            row.style.marginTop = "6px";
+            row.innerHTML = `<input type="password" data-mcp-env="${item.id}:${envKey}" placeholder="${envKey}" value="${val}" />`;
+            envBox.appendChild(row);
+          }
+
+          wrap.appendChild(title);
+          wrap.appendChild(desc);
+          wrap.appendChild(envBox);
+          mcpListEl.appendChild(wrap);
+        }
+      }
+
+      function collectMcpConfig() {
+        const servers = [];
+        for (const item of state.mcpCatalog) {
+          const enable = document.querySelector(`[data-mcp-enable="${item.id}"]`);
+          if (!enable || !enable.checked) continue;
+
+          const env = {};
+          for (const key of item.required_env || []) {
+            const input = document.querySelector(`[data-mcp-env="${item.id}:${key}"]`);
+            const value = (input?.value || "").trim();
+            if (value) env[key] = value;
+          }
+
+          servers.push({
+            name: item.id,
+            command: item.command,
+            args: item.args_template,
+            env,
+          });
+        }
+        return servers;
+      }
+
+      async function api(path, options = {}) {
+        const headers = {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+          ...(options.headers || {}),
+        };
+        const res = await fetch(path, { ...options, headers });
+        const text = await res.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { raw: text };
+        }
+        if (!res.ok) throw new Error(data.detail || `请求失败: ${res.status}`);
+        return data;
+      }
+
+      async function initProviders() {
+        const data = await api("/api/providers", { method: "GET", headers: {} });
+        state.providers = data.providers || [];
+
+        providerEl.innerHTML = "";
+        for (const p of state.providers) {
+          const opt = document.createElement("option");
+          opt.value = p.provider;
+          opt.textContent = `${p.provider} (${p.default_model})`;
+          if (p.provider === data.default_provider) opt.selected = true;
+          providerEl.appendChild(opt);
+        }
+
+        renderModelOptions();
+        syncApiKeyInput();
+      }
+
+      async function initMcp() {
+        const catalog = await api("/api/mcp/catalog", { method: "GET", headers: {} });
+        state.mcpCatalog = catalog.items || [];
+        if (getToken()) {
+          const conf = await api("/api/mcp/config", { method: "GET" });
+          state.mcpConfig = conf.servers || [];
+        } else {
+          state.mcpConfig = [];
+        }
+        renderMcpList();
+      }
+
+      async function initPricing() {
+        if (!getToken()) {
+          state.pricing = {};
+          state.pricingDefaults = {};
+          pricingJsonEl.value = "{}";
+          return;
+        }
+        if (!state.apiCaps.pricing) {
+          state.pricing = {};
+          state.pricingDefaults = {};
+          pricingJsonEl.value = "{}";
+          settingsStatus.textContent = formatCapabilityHint();
+          return;
+        }
+        try {
+          const data = await api("/api/pricing", { method: "GET" });
+          state.pricing = data.pricing || {};
+          state.pricingDefaults = data.defaults || {};
+          pricingJsonEl.value = JSON.stringify(state.pricing, null, 2);
+        } catch (e) {
+          state.pricing = {};
+          state.pricingDefaults = {};
+          pricingJsonEl.value = "{}";
+          settingsStatus.textContent = `价格接口不可用（可能是旧版服务未重启）: ${e}`;
+        }
+      }
+
+      async function loadUserMemory() {
+        if (!state.apiCaps.memory) {
+          memoryProfileEl.value = "";
+          memoryHabitsEl.value = "{}";
+          memorySkillsEl.value = "[]";
+          memoryPricingEl.value = "{}";
+          state.memoryVersions = [];
+          memoryStatusEl.textContent = formatCapabilityHint();
+          return;
+        }
+        try {
+          const data = await api("/api/user/memory", { method: "GET" });
+          const memory = data.memory || {};
+          state.memoryVersions = data.versions || [];
+          memoryProfileEl.value = memory.profile || "";
+          memoryHabitsEl.value = JSON.stringify(memory.habits || {}, null, 2);
+          memorySkillsEl.value = JSON.stringify(memory.skills || [], null, 2);
+          memoryPricingEl.value = JSON.stringify(memory.pricing || {}, null, 2);
+        } catch (e) {
+          memoryStatusEl.textContent = `资料库接口不可用（可能是旧版服务未重启）: ${e}`;
+        }
+      }
+
+      function renderVersionList() {
+        versionListEl.innerHTML = "";
+        if (!state.memoryVersions.length) {
+          const empty = document.createElement("div");
+          empty.className = "status";
+          empty.textContent = "暂无存档";
+          versionListEl.appendChild(empty);
+          return;
+        }
+        for (const item of state.memoryVersions) {
+          const row = document.createElement("div");
+          row.className = "history-item";
+          row.innerHTML = `<div class="t1">${item.reason || "manual_update"}</div><div class="t2">${formatTs(item.created_at)}</div>`;
+          const btn = document.createElement("button");
+          btn.textContent = "回滚到此版本";
+          btn.addEventListener("click", async () => {
+            await api(`/api/user/memory/restore/${encodeURIComponent(item.version_id)}`, {
+              method: "POST",
+            });
+            await loadUserMemory();
+            renderVersionList();
+            memoryStatusEl.textContent = "已回滚并重新加载";
+            versionDialog.close();
+          });
+          row.appendChild(btn);
+          versionListEl.appendChild(row);
+        }
+      }
+
+      async function restoreMe() {
+        if (!getToken()) return false;
+        try {
+          const me = await api("/api/me", { method: "GET" });
+          setAuthState(true, `已登录: ${me.email}`, me.email);
+          await refreshSessions();
+          if (state.sessions.length) {
+            state.currentSessionId = state.sessions[0].session_id;
+            await loadSessionHistory(state.currentSessionId);
+          } else {
+            startNewConversation();
+          }
+          return true;
+        } catch {
+          setToken("");
+          setAuthState(false, "登录态失效，请重新登录");
+          return false;
+        }
+      }
+
+      function authPaths() {
+        if (state.authMode === "register") {
+          return {
+            send: "/api/auth/register/request-code",
+            verify: "/api/auth/register/verify",
+          };
+        }
+        return {
+          send: "/api/auth/login/request-code",
+          verify: "/api/auth/login/verify",
+        };
+      }
+
+      async function streamChat(payload) {
+        const res = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || "流式请求失败");
+        }
+
+        const assistantNode = append("assistant", "", "助手（流式）");
+        const body = assistantNode.querySelector(".msg-body");
+        let panel = null;
+        function ensurePanel() {
+          if (!panel) {
+            panel = buildToolPanel(payload.session_id, `live_${Date.now()}`);
+            assistantNode.appendChild(panel.details);
+          }
+          return panel;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buf = "";
+        let fullText = "";
+        let hasMetrics = false;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+
+          let splitIndex;
+          while ((splitIndex = buf.indexOf("\n\n")) >= 0) {
+            const one = buf.slice(0, splitIndex);
+            buf = buf.slice(splitIndex + 2);
+            if (!one.startsWith("data: ")) continue;
+
+            let evt = {};
+            try {
+              evt = JSON.parse(one.slice(6));
+            } catch {
+              continue;
+            }
+
+            if (evt.type === "delta") {
+              fullText += evt.content || "";
+              body.innerHTML = marked.parse(fullText);
+              timelineEl.scrollTop = timelineEl.scrollHeight;
+            }
+            if (evt.type === "tool_start") {
+              ensurePanel().addEvent(evt);
+            }
+            if (evt.type === "tool_result") {
+              ensurePanel().addEvent(evt);
+            }
+            if (evt.type === "tool_error") {
+              ensurePanel().addEvent(evt);
+            }
+            if (evt.type === "skill_match") {
+              ensurePanel().addEvent(evt);
+            }
+            if (evt.type === "metrics") {
+              hasMetrics = true;
+              ensureUsageNote(assistantNode, evt.usage || {}, evt.cost || {}, evt.provider, evt.model);
+            }
+            if (evt.type === "error") throw new Error(evt.message || "流式响应错误");
+          }
+        }
+
+        if (!hasMetrics) {
+          ensureUsageNote(assistantNode, { unavailable: true }, {}, payload.provider, payload.model);
+        }
+      }
+
+      avatarBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        avatarMenu.classList.toggle("show");
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!avatarMenu.contains(e.target) && e.target !== avatarBtn) {
+          avatarMenu.classList.remove("show");
+        }
+      });
+
+      openAuthBtn.addEventListener("click", () => {
+        avatarMenu.classList.remove("show");
+        renderAuthMode();
+        authDialogStatus.textContent = "";
+        authDialog.showModal();
+      });
+
+      historyBtn.addEventListener("click", async () => {
+        avatarMenu.classList.remove("show");
+        if (!getToken()) {
+          setAuthState(false, "请先登录后查看历史");
+          return;
+        }
+        try {
+          await refreshSessions();
+          renderHistoryList();
+          historyDialog.showModal();
+        } catch (e) {
+          append("assistant", String(e), "错误");
+        }
+      });
+
+      newChatBtn.addEventListener("click", () => {
+        avatarMenu.classList.remove("show");
+        startNewConversation();
+      });
+
+      memoryBtn.addEventListener("click", async () => {
+        avatarMenu.classList.remove("show");
+        if (!getToken()) {
+          setAuthState(false, "请先登录后查看资料库");
+          return;
+        }
+        try {
+          await loadUserMemory();
+          memoryStatusEl.textContent = "";
+          memoryDialog.showModal();
+        } catch (e) {
+          append("assistant", String(e), "错误");
+        }
+      });
+
+      closeAuthBtn.addEventListener("click", () => authDialog.close());
+      closeHistoryBtn.addEventListener("click", () => historyDialog.close());
+      closeMemoryBtn.addEventListener("click", () => memoryDialog.close());
+      closeVersionBtn.addEventListener("click", () => versionDialog.close());
+
+      tabRegister.addEventListener("click", () => {
+        state.authMode = "register";
+        renderAuthMode();
+      });
+
+      tabLogin.addEventListener("click", () => {
+        state.authMode = "login";
+        renderAuthMode();
+      });
+
+      sendCodeBtn.addEventListener("click", async () => {
+        const email = emailEl.value.trim();
+        if (!email) {
+          authDialogStatus.textContent = "请输入邮箱";
+          authDialogStatus.className = "status error";
+          return;
+        }
+
+        const paths = authPaths();
+        sendCodeBtn.disabled = true;
+        try {
+          const data = await api(paths.send, {
+            method: "POST",
+            headers: {},
+            body: JSON.stringify({ email }),
+          });
+          authDialogStatus.textContent = data.debug_code
+            ? `验证码已发送（调试码: ${data.debug_code}）`
+            : "验证码已发送";
+          authDialogStatus.className = "status";
+        } catch (e) {
+          authDialogStatus.textContent = String(e);
+          authDialogStatus.className = "status error";
+        } finally {
+          sendCodeBtn.disabled = false;
+        }
+      });
+
+      confirmAuthBtn.addEventListener("click", async () => {
+        const email = emailEl.value.trim();
+        const code = codeEl.value.trim();
+        if (!email || !code) {
+          authDialogStatus.textContent = "请输入邮箱和验证码";
+          authDialogStatus.className = "status error";
+          return;
+        }
+
+        const paths = authPaths();
+        confirmAuthBtn.disabled = true;
+        try {
+          const data = await api(paths.verify, {
+            method: "POST",
+            headers: {},
+            body: JSON.stringify({ email, code }),
+          });
+          setToken(data.token || "");
+          setAuthState(true, `已登录: ${data.email}`, data.email || "");
+          authDialog.close();
+          startNewConversation();
+          await refreshSessions();
+          await initMcp();
+          await initPricing();
+        } catch (e) {
+          authDialogStatus.textContent = String(e);
+          authDialogStatus.className = "status error";
+          setAuthState(false, "认证失败，请重试");
+        } finally {
+          confirmAuthBtn.disabled = false;
+        }
+      });
+
+      logoutBtn.addEventListener("click", () => {
+        avatarMenu.classList.remove("show");
+        setToken("");
+        state.sessions = [];
+        timelineEl.innerHTML = "";
+        state.currentSessionId = "";
+        setAuthState(false, "已退出登录");
+      });
+
+      settingsBtn.addEventListener("click", async () => {
+        avatarMenu.classList.remove("show");
+        try {
+          await initMcp();
+          await initPricing();
+          settingsDialog.showModal();
+        } catch (e) {
+          settingsStatus.textContent = String(e);
+        }
+      });
+
+      closeSettingsBtn.addEventListener("click", () => settingsDialog.close());
+
+      providerEl.addEventListener("change", () => {
+        renderModelOptions();
+        syncApiKeyInput();
+      });
+
+      modelPresetEl.addEventListener("change", () => {
+        if (modelPresetEl.value !== "__custom__") modelEl.value = modelPresetEl.value;
+      });
+
+      apiKeyEl.addEventListener("change", () => {
+        const p = activeProvider();
+        if (!p) return;
+        const val = apiKeyEl.value.trim();
+        if (val) localStorage.setItem(`${keyPrefix}${p.provider}`, val);
+        else localStorage.removeItem(`${keyPrefix}${p.provider}`);
+      });
+
+      saveMcpBtn.addEventListener("click", async () => {
+        if (!getToken()) {
+          settingsStatus.textContent = "请先登录后保存 MCP 配置";
+          return;
+        }
+        try {
+          const servers = collectMcpConfig();
+          await api("/api/mcp/config", {
+            method: "POST",
+            body: JSON.stringify({ servers }),
+          });
+          settingsStatus.textContent = "MCP 配置已保存";
+        } catch (e) {
+          settingsStatus.textContent = String(e);
+        }
+      });
+
+      loadDefaultPricingBtn.addEventListener("click", () => {
+        pricingJsonEl.value = JSON.stringify(state.pricingDefaults || {}, null, 2);
+      });
+
+      savePricingBtn.addEventListener("click", async () => {
+        if (!getToken()) {
+          settingsStatus.textContent = "请先登录后保存价格表";
+          return;
+        }
+        try {
+          const pricing = JSON.parse(pricingJsonEl.value || "{}");
+          await api("/api/pricing", {
+            method: "POST",
+            body: JSON.stringify({ pricing }),
+          });
+          settingsStatus.textContent = "价格表已保存";
+          state.pricing = pricing;
+        } catch (e) {
+          settingsStatus.textContent = `价格表保存失败: ${e}`;
+        }
+      });
+
+      saveMemoryBtn.addEventListener("click", async () => {
+        if (!getToken()) return;
+        try {
+          const profile = memoryProfileEl.value || "";
+          const habits = JSON.parse(memoryHabitsEl.value || "{}");
+          const skills = JSON.parse(memorySkillsEl.value || "[]");
+          const pricing = JSON.parse(memoryPricingEl.value || "{}");
+          const data = await api("/api/user/memory", {
+            method: "POST",
+            body: JSON.stringify({
+              profile,
+              habits,
+              skills,
+              pricing,
+              reason: "ui_manual_save",
+            }),
+          });
+          state.memoryVersions = data.versions || [];
+          memoryStatusEl.textContent = "保存成功（已自动存档）";
+          pricingJsonEl.value = JSON.stringify(pricing, null, 2);
+        } catch (e) {
+          memoryStatusEl.textContent = `保存失败: ${e}`;
+        }
+      });
+
+      openVersionBtn.addEventListener("click", async () => {
+        if (!getToken()) return;
+        try {
+          const data = await api("/api/user/memory/versions", { method: "GET" });
+          state.memoryVersions = data.items || [];
+          renderVersionList();
+          versionDialog.showModal();
+        } catch (e) {
+          memoryStatusEl.textContent = `读取存档失败: ${e}`;
+        }
+      });
+
+      sendBtn.addEventListener("click", async () => {
+        if (!getToken()) {
+          setAuthState(false, "请先登录");
+          return;
+        }
+        const message = messageEl.value.trim();
+        if (!message) return;
+
+        const provider = providerEl.value;
+        const model = modelEl.value.trim();
+        const apiKey = (apiKeyEl.value || "").trim();
+        if (!state.currentSessionId) startNewConversation();
+        const sessionId = state.currentSessionId;
+
+        append("user", message, "你");
+        messageEl.value = "";
+        sendBtn.disabled = true;
+
+        try {
+          await streamChat({
+            message,
+            provider,
+            model,
+            api_key: apiKey,
+            session_id: sessionId,
+          });
+          await refreshSessions();
+        } catch (e) {
+          append("assistant", String(e), "错误");
+        } finally {
+          sendBtn.disabled = false;
+        }
+      });
+
+      messageEl.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") sendBtn.click();
+      });
+
+      (async function init() {
+        setAuthState(false, "请先登录后开始聊天");
+        startNewConversation();
+        try {
+          await detectApiCaps();
+          await initProviders();
+          await initMcp();
+          const capHint = formatCapabilityHint();
+          if (capHint) {
+            authStatus.textContent = capHint;
+            authStatus.className = "status error";
+          }
+          const ok = await restoreMe();
+          if (ok) {
+            await initPricing();
+          }
+        } catch (e) {
+          authStatus.textContent = `初始化失败: ${e}（请重启为当前工作区新版本服务）`;
+          authStatus.className = "status error";
+        }
+      })();
+    </script>
+  </body>
+</html>

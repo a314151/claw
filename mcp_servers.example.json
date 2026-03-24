@@ -1,0 +1,23 @@
+[
+  {
+    "name": "filesystem",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "D:/Desktop/1"
+    ],
+    "env": {}
+  },
+  {
+    "name": "doc_export",
+    "command": "uv",
+    "args": [
+      "run",
+      "python",
+      "-m",
+      "personal_assistant.mcp_document_server"
+    ],
+    "env": {}
+  }
+]

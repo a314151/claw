@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "personal-mcp-assistant"
+version = "0.1.0"
+description = "A minimal, modular personal assistant powered by LLM + MCP"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "openai>=1.51.0",
+  "mcp>=1.6.0",
+  "python-dotenv>=1.0.1",
+  "httpx>=0.27.0",
+  "fastapi>=0.116.0",
+  "uvicorn>=0.42.0",
+  "boto3>=1.40.0",
+  "reportlab>=4.2.0",
+]
+
+[project.scripts]
+pa = "personal_assistant.cli:main"
+pa-web = "personal_assistant.web_app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/personal_assistant"]
