@@ -21,13 +21,17 @@ from botocore.exceptions import ClientError
 
 from .app_logger import logger
 from .skill_engine import load_default_skills, normalize_skills
+from .time_system import TimeSystem
 
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+_TIME_SYSTEM = TimeSystem()
+
+
 def _now_ts() -> int:
-    return int(time.time())
+    return _TIME_SYSTEM.now_ts()
 
 
 def _word_count(text: str) -> int:
@@ -628,6 +632,7 @@ class UserStore:
             content = str(item.get("content", "")).strip()
             if role in {"user", "assistant", "tool"} and content:
                 payload: dict[str, Any] = {"role": role, "content": content}
+                payload["ts"] = int(item.get("ts", 0) or 0)
                 if include_meta and isinstance(item.get("meta"), dict):
                     payload["meta"] = item["meta"]
                 filtered.append(payload)

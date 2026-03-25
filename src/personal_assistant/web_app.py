@@ -24,6 +24,10 @@ from .llm_client import LLMClient
 from .mcp_client import MCPManager
 from .user_store import MCP_CATALOG, R2KVStore, UserIdentity, UserStore
 from .skill_engine import build_skill_guidance
+from .time_system import TimeSystem, build_local_time_reply, is_time_query
+
+
+_TIME_SYSTEM = TimeSystem()
 
 
 class ChatRequest(BaseModel):
@@ -232,6 +236,14 @@ def _to_pdf_bytes(title: str, content: str) -> bytes:
 
     c.save()
     return stream.getvalue()
+
+
+def _is_time_query(message: str) -> bool:
+    return is_time_query(message)
+
+
+def _build_local_time_reply() -> str:
+    return build_local_time_reply(_TIME_SYSTEM)
 
 
 def _send_email_code(to_email: str, code: str) -> str | None:
@@ -589,6 +601,42 @@ def create_app(config_path: str | None = None, debug: bool = False) -> FastAPI:
         session_id = (req.session_id or "default").strip() or "default"
 
         await data.store.append_history_message(user.user_id, session_id, "user", req.message)
+        if _is_time_query(req.message):
+            reply = _build_local_time_reply()
+            await data.store.append_history_message(
+                user.user_id,
+                session_id,
+                "assistant",
+                reply,
+                meta={
+                    "tool_events": [],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    "cost": {"cost_cny": 0.0, "pricing_matched": True},
+                    "provider": "local",
+                    "model": "clock",
+                    "matched_skills": [],
+                    "skill_guidance": "",
+                    "time_snapshot": _TIME_SYSTEM.build_time_memory_node(),
+                },
+            )
+            await data.store.update_habits(
+                user_id=user.user_id,
+                user_message=req.message,
+                provider="local",
+                model="clock",
+                tool_event_count=0,
+            )
+            return ChatResponse(
+                reply=reply,
+                provider="local",
+                model="clock",
+                elapsed_ms=1,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                cost_cny=0.0,
+            )
+
         history = await data.store.get_history(user.user_id, session_id)
         profile = await data.store.get_profile_text(user.user_id)
         defaults: dict[str, Any] = {
@@ -645,6 +693,7 @@ def create_app(config_path: str | None = None, debug: bool = False) -> FastAPI:
                 "model": model,
                 "matched_skills": [str(x.get("title", "")) for x in matched_skills],
                 "skill_guidance": skill_guidance,
+                "time_snapshot": _TIME_SYSTEM.build_time_memory_node(),
             },
         )
         updated_history = await data.store.get_history(user.user_id, session_id)
@@ -692,6 +741,49 @@ def create_app(config_path: str | None = None, debug: bool = False) -> FastAPI:
 
         async def event_generator():
             await data.store.append_history_message(user.user_id, session_id, "user", req.message)
+            if _is_time_query(req.message):
+                final_text = _build_local_time_reply()
+                yield "data: " + json.dumps({"type": "delta", "content": final_text}, ensure_ascii=False) + "\n\n"
+                yield (
+                    "data: "
+                    + json.dumps(
+                        {
+                            "type": "metrics",
+                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                            "cost": {"cost_cny": 0.0, "pricing_matched": True},
+                            "provider": "local",
+                            "model": "clock",
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n\n"
+                )
+                await data.store.append_history_message(
+                    user.user_id,
+                    session_id,
+                    "assistant",
+                    final_text,
+                    meta={
+                        "tool_events": [],
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        "cost": {"cost_cny": 0.0, "pricing_matched": True},
+                        "provider": "local",
+                        "model": "clock",
+                        "matched_skills": [],
+                        "skill_guidance": "",
+                        "time_snapshot": _TIME_SYSTEM.build_time_memory_node(),
+                    },
+                )
+                await data.store.update_habits(
+                    user_id=user.user_id,
+                    user_message=req.message,
+                    provider="local",
+                    model="clock",
+                    tool_event_count=0,
+                )
+                yield "data: {\"type\":\"done\"}\n\n"
+                return
+
             history = await data.store.get_history(user.user_id, session_id)
             profile = await data.store.get_profile_text(user.user_id)
             defaults: dict[str, Any] = {
@@ -788,6 +880,7 @@ def create_app(config_path: str | None = None, debug: bool = False) -> FastAPI:
                             "model": model,
                             "matched_skills": [str(x.get("title", "")) for x in matched_skills],
                             "skill_guidance": skill_guidance,
+                            "time_snapshot": _TIME_SYSTEM.build_time_memory_node(),
                         },
                     )
                     updated_history = await data.store.get_history(user.user_id, session_id)

@@ -731,6 +731,22 @@
         return d.toLocaleString("zh-CN", { hour12: false });
       }
 
+      function formatMsgTs(ts) {
+        if (!ts) {
+          return new Date().toLocaleString("zh-CN", { hour12: false });
+        }
+        const raw = Number(ts);
+        if (!Number.isFinite(raw) || raw <= 0) {
+          return new Date().toLocaleString("zh-CN", { hour12: false });
+        }
+        const ms = raw > 1e12 ? raw : raw * 1000;
+        const d = new Date(ms);
+        if (Number.isNaN(d.getTime())) {
+          return new Date().toLocaleString("zh-CN", { hour12: false });
+        }
+        return d.toLocaleString("zh-CN", { hour12: false });
+      }
+
       function renderHistoryList() {
         historyListEl.innerHTML = "";
         if (!state.sessions.length) {
@@ -772,12 +788,12 @@
         for (let i = 0; i < messages.length; i += 1) {
           const msg = messages[i];
           if (msg.role === "user") {
-            append("user", msg.content, "你");
+            append("user", msg.content, "你", msg.ts);
             continue;
           }
 
           if (msg.role === "assistant") {
-            const node = append("assistant", msg.content, "助手");
+            const node = append("assistant", msg.content, "助手", msg.ts);
             const meta = msg.meta && typeof msg.meta === "object" ? msg.meta : {};
             const skillItems = Array.isArray(meta.matched_skills) ? meta.matched_skills : [];
             const combinedEvents = [];
@@ -798,7 +814,7 @@
             continue;
           }
 
-          append("assistant", msg.content, msg.role || "消息");
+          append("assistant", msg.content, msg.role || "消息", msg.ts);
         }
         renderCurrentSessionLabel();
       }
@@ -818,13 +834,13 @@
         renderCurrentSessionLabel();
       }
 
-      function append(role, content, meta) {
+      function append(role, content, meta, ts = null) {
         const item = document.createElement("article");
         item.className = role === "user" ? "msg user" : "msg";
 
         const metaEl = document.createElement("div");
         metaEl.className = "meta";
-        metaEl.textContent = meta || role;
+        metaEl.textContent = `${meta || role} · ${formatMsgTs(ts)}`;
 
         const bodyEl = document.createElement("div");
         bodyEl.className = "msg-body";

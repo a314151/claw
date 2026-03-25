@@ -28,6 +28,9 @@
 - 资料修改自动存档，支持历史回滚
 - 导出按钮默认折叠显示（减小占位），支持后端导出与前端本地导出兜底
 - 即使模型未返回 usage，也会显示明确提示（Token 未返回）
+- 时间系统模块化（统一时钟源、时区策略、时间展示与历史一致性）
+- 默认 Skills 扩展到 17 项（含 GitHub 来源与 MCP 适配信息）
+- 新增系统化自动检查脚本（时间系统/Skills/MCP 适配）
 
 ## 1. 项目结构
 
@@ -169,6 +172,7 @@ http://127.0.0.1:8090
 - 每条助手回答支持折叠式导出（CSV/PDF）
 - 若后端导出接口缺失（旧版服务），前端会自动使用本地导出兜底
 - 头像菜单支持打开“我的资料库”，可查看和编辑持久化信息
+- 每条消息头显示时间戳（历史与实时消息一致）
 
 登录与持久化说明：
 
@@ -235,11 +239,15 @@ SMTP 必填配置（`.env`）：
   - 主编排循环：模型决定是否调用工具，工具结果回灌模型
   - 限制最大轮次，避免无限循环
   - 新增 Skill 匹配注入：调用工具前按题目/关键词匹配 skill 指令，减少无效探索
+- `time_system.py`
+  - 统一时钟源与时区策略（默认 `Asia/Shanghai`，缺失时自动降级系统本地时区）
+  - 提供时间查询识别、标准化时间快照、统一展示格式
 - `cli.py`
   - 命令行入口，支持单次与 REPL 模式
 - `web_app.py`
   - FastAPI 本地服务，提供可视化页面与 `/api/chat`
   - 新增 `/api/export/answer`、`/api/pricing`、`/api/user/memory*` 接口
+  - 时间查询走本地时钟快速路径，避免模型时间漂移
 
 ### 5.2 稳健性策略
 
@@ -287,6 +295,18 @@ Get-CimInstance Win32_Process -Filter "ProcessId=<PID>" | Select-Object ProcessI
 
 ```powershell
 uv run pa-web --host 127.0.0.1 --port 8090
+```
+
+- 系统化基础检查（时间系统 + Skills）
+
+```powershell
+uv run python scripts/check_system_foundations.py
+```
+
+- MCP 适配检查（安装/启动验证）
+
+```powershell
+uv run python scripts/check_mcp_adapters.py
 ```
 
 ## 8. 许可建议
